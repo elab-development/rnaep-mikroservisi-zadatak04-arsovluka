@@ -1,0 +1,69 @@
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  inventory:
+    build: ./inventory
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  inventory-consumer:
+    build: ./inventory
+    command: python consumer.py
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+    depends_on:
+      - redis
+      - inventory
+    restart: unless-stopped
+
+  payment:
+    build: ./payment
+    ports:
+      - "8001:8000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - INVENTORY_SERVICE_URL=http://inventory:8000
+    depends_on:
+      - redis
+      - inventory
+    restart: unless-stopped
+
+  payment-consumer:
+    build: ./payment
+    command: python consumer.py
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+    depends_on:
+      - redis
+      - payment
+    restart: unless-stopped
+
+  notification:
+    build: ./notification
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+    depends_on:
+      - redis
+      - inventory
+      - payment
+    restart: unless-stopped  
